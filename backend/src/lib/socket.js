@@ -5,15 +5,16 @@ import express from "express";
 const app = express();
 const server = http.createServer(app);
 
+
 const allowedOrigins = [
-  "http://localhost:5173",             
-  "https://YOUR_FRONTEND.vercel.app",   
+  "http://localhost:5173",
+  "https://quickchat-sable.vercel.app",
 ];
 
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
-    credentials: true, 
+    credentials: true,
   },
 });
 
