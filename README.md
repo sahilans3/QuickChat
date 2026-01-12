@@ -5,6 +5,9 @@ It supports secure authentication, real-time messaging, image uploads, and onlin
 
 This project was developed, debugged, and deployed independently, with inspiration from open-source references.
 
+### 🔗 Live Demo
+Frontend: https://your-vercel-url.vercel.app  
+Backend: https://quickchat-ychg.onrender.com
 ---
 
 ## ✨ Features
