@@ -1,42 +1,77 @@
-# ✨ Full Stack Realtime Chat App ✨
+# QuickChat – Real-Time Chat Application 🚀
 
-![Demo App](/frontend/public/screenshot-for-readme.png)
+QuickChat is a full-stack real-time chat application built using the MERN stack.  
+It supports secure authentication, real-time messaging, image uploads, and online user tracking with a production-ready architecture.
 
-[Video Tutorial on Youtube](https://youtu.be/ntKkVrQqBYY)
+This project was developed, debugged, and deployed independently, with inspiration from open-source references.
 
-Highlights:
+---
 
-- 🌟 Tech stack: MERN + Socket.io + TailwindCSS + Daisy UI
-- 🎃 Authentication && Authorization with JWT
-- 👾 Real-time messaging with Socket.io
-- 🚀 Online user status
-- 👌 Global state management with Zustand
-- 🐞 Error handling both on the server and on the client
-- ⭐ At the end Deployment like a pro for FREE!
-- ⏳ And much more!
+## ✨ Features
 
-### Setup .env file
+- 🔐 User Authentication (Signup / Login / Logout)
+- 🛡 JWT-based authentication using **HTTP-only cookies**
+- 💬 Real-time messaging with **Socket.io**
+- 🟢 Online / Offline user status
+- 🖼 Profile image upload using **Cloudinary**
+- 🔄 Persistent login on page refresh
+- 🌐 Secure CORS & preflight handling
+- 📱 Responsive UI with Tailwind CSS & DaisyUI
 
-```js
-MONGODB_URI=...
-PORT=5001
-JWT_SECRET=...
+---
 
-CLOUDINARY_CLOUD_NAME=...
-CLOUDINARY_API_KEY=...
-CLOUDINARY_API_SECRET=...
+## 🛠 Tech Stack
 
-NODE_ENV=development
-```
+### Frontend
+- React (Vite)
+- Zustand (state management)
+- Tailwind CSS + DaisyUI
+- Axios
+- Socket.io-client
 
-### Build the app
+### Backend
+- Node.js
+- Express.js
+- MongoDB Atlas
+- Mongoose
+- Socket.io
+- JWT (Authentication)
+- bcrypt (Password hashing)
+- Cloudinary (Image uploads)
 
-```shell
-npm run build
-```
+---
 
-### Start the app
+## 🧩 Architecture Overview
 
-```shell
-npm start
-```
+Frontend (Vercel / Localhost)
+↓
+Backend API & Socket Server (Render / Localhost)
+↓
+MongoDB Atlas
+↓
+Cloudinary (Image Storage)
+
+---
+
+## 🔐 Authentication & Security
+
+- Passwords are hashed using **bcrypt**
+- JWT tokens are stored in **HTTP-only cookies**
+- CORS configured for secure cross-origin requests
+- Preflight (OPTIONS) requests handled properly
+- Secrets managed via environment variables
+
+---
+
+## ⚙️ Environment Variables
+
+### Backend (`backend/.env`)
+```env
+PORT=8000
+MONGODB_URI=your_mongodb_atlas_uri
+JWT_SECRET=your_jwt_secret
+
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
