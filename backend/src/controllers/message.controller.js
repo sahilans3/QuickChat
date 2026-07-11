@@ -21,7 +21,7 @@ export const getUsersForSidebar = async (req, res) => {
   }
 };
 
-// ✅ GET MESSAGES (Redis cache)
+// ✅ GET MESSAGES (Redis cache with fallback)
 export const getMessages = async (req, res) => {
   try {
     const { id: userToChatId } = req.params;
@@ -29,10 +29,15 @@ export const getMessages = async (req, res) => {
 
     const chatKey = `chat:${[myId, userToChatId].sort().join(":")}`;
 
-    const cachedMessages = await redisClient.get(chatKey);
-
-    if (cachedMessages) {
-      return res.status(200).json(JSON.parse(cachedMessages));
+    if (redisClient.isReady) {
+      try {
+        const cachedMessages = await redisClient.get(chatKey);
+        if (cachedMessages) {
+          return res.status(200).json(JSON.parse(cachedMessages));
+        }
+      } catch (e) {
+        console.error("Redis Cache Error:", e);
+      }
     }
 
     const messages = await Message.find({
@@ -42,9 +47,11 @@ export const getMessages = async (req, res) => {
       ],
     });
 
-    await redisClient.set(chatKey, JSON.stringify(messages), {
-      EX: 60,
-    });
+    if (redisClient.isReady) {
+      try {
+        await redisClient.set(chatKey, JSON.stringify(messages), { EX: 60 });
+      } catch (e) {}
+    }
 
     res.status(200).json(messages);
   } catch (error) {
@@ -77,10 +84,24 @@ export const sendMessage = async (req, res) => {
 
     // 🔥 Invalidate cache
     const chatKey = `chat:${[senderId, receiverId].sort().join(":")}`;
-    await redisClient.del(chatKey);
+    if (redisClient.isReady) {
+      try { await redisClient.del(chatKey); } catch(e) {}
+    }
 
-    // 🔥 Publish message (NO direct socket emit)
-    await pubClient.publish("chat", JSON.stringify(newMessage));
+    // 🔥 Publish message or direct emit if Redis fails
+    if (pubClient.isReady) {
+      try {
+        await pubClient.publish("chat", JSON.stringify(newMessage));
+      } catch(e) {
+        // Fallback to direct emit
+        const receiverSocketId = await getReceiverSocketId(receiverId);
+        if (receiverSocketId) io.to(receiverSocketId).emit("newMessage", newMessage);
+      }
+    } else {
+       // Fallback to direct emit
+       const receiverSocketId = await getReceiverSocketId(receiverId);
+       if (receiverSocketId) io.to(receiverSocketId).emit("newMessage", newMessage);
+    }
 
     res.status(201).json(newMessage);
   } catch (error) {

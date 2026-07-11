@@ -30,12 +30,13 @@ const subClient = pubClient.duplicate();
 const userSocketMap = new Map(); // Memory fallback if Redis fails
 
 export async function getReceiverSocketId(userId) {
+  const userIdStr = userId.toString();
   if (pubClient.isReady) {
     try {
-      return await pubClient.get(`user:${userId}`);
-    } catch(e) { return userSocketMap.get(userId); }
+      return await pubClient.get(`user:${userIdStr}`);
+    } catch(e) { return userSocketMap.get(userIdStr); }
   }
-  return userSocketMap.get(userId);
+  return userSocketMap.get(userIdStr);
 }
 
 // ---------------- SOCKET CONNECTION ----------------
