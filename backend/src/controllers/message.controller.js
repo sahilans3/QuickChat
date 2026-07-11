@@ -2,24 +2,38 @@ import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 
 import cloudinary from "../lib/cloudinary.js";
-import { getReceiverSocketId, io } from "../lib/socket.js";
+import { redisClient } from "../index.js";
+import { pubClient } from "../lib/socket.js";
 
+// ✅ USERS
 export const getUsersForSidebar = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
-    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
 
-    res.status(200).json(filteredUsers);
+    const users = await User.find({
+      _id: { $ne: loggedInUserId },
+    }).select("-password");
+
+    res.status(200).json(users);
   } catch (error) {
-    console.error("Error in getUsersForSidebar: ", error.message);
+    console.error("Error in getUsersForSidebar:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// ✅ GET MESSAGES (Redis cache)
 export const getMessages = async (req, res) => {
   try {
     const { id: userToChatId } = req.params;
     const myId = req.user._id;
+
+    const chatKey = `chat:${[myId, userToChatId].sort().join(":")}`;
+
+    const cachedMessages = await redisClient.get(chatKey);
+
+    if (cachedMessages) {
+      return res.status(200).json(JSON.parse(cachedMessages));
+    }
 
     const messages = await Message.find({
       $or: [
@@ -28,13 +42,18 @@ export const getMessages = async (req, res) => {
       ],
     });
 
+    await redisClient.set(chatKey, JSON.stringify(messages), {
+      EX: 60,
+    });
+
     res.status(200).json(messages);
   } catch (error) {
-    console.log("Error in getMessages controller: ", error.message);
+    console.log("Error in getMessages controller:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// ✅ SEND MESSAGE (Redis Pub/Sub)
 export const sendMessage = async (req, res) => {
   try {
     const { text, image } = req.body;
@@ -43,7 +62,6 @@ export const sendMessage = async (req, res) => {
 
     let imageUrl;
     if (image) {
-      // Upload base64 image to cloudinary
       const uploadResponse = await cloudinary.uploader.upload(image);
       imageUrl = uploadResponse.secure_url;
     }
@@ -57,14 +75,16 @@ export const sendMessage = async (req, res) => {
 
     await newMessage.save();
 
-    const receiverSocketId = getReceiverSocketId(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
-    }
+    // 🔥 Invalidate cache
+    const chatKey = `chat:${[senderId, receiverId].sort().join(":")}`;
+    await redisClient.del(chatKey);
+
+    // 🔥 Publish message (NO direct socket emit)
+    await pubClient.publish("chat", JSON.stringify(newMessage));
 
     res.status(201).json(newMessage);
   } catch (error) {
-    console.log("Error in sendMessage controller: ", error.message);
+    console.log("Error in sendMessage controller:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };

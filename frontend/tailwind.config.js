@@ -9,8 +9,17 @@ export default {
   plugins: [daisyui],
   daisyui: {
     themes: [
+      {
+        dark: {
+          ...require("daisyui/src/theming/themes")["dark"],
+          "primary": "#5865F2",
+          "base-100": "#0F1115",
+          "base-200": "#15181E",
+          "base-300": "#1F232B",
+          "neutral": "#2B2F38",
+        },
+      },
       "light",
-      "dark",
       "cupcake",
       "bumblebee",
       "emerald",

@@ -18,6 +18,15 @@ const messageSchema = new mongoose.Schema(
     image: {
       type: String,
     },
+    isAIGenerated: {
+      type: Boolean,
+      default: false,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'complete', 'error'],
+      default: 'complete', // For normal messages, it's complete right away. AI might be pending if streaming.
+    }
   },
   { timestamps: true }
 );

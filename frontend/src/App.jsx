@@ -1,4 +1,4 @@
-import Navbar from "./components/Navbar";
+import SidebarRail from "./components/SidebarRail";
 
 import HomePage from "./pages/HomePage";
 import SignUpPage from "./pages/SignUpPage";
@@ -34,16 +34,18 @@ const App = () => {
     );
 
   return (
-    <div data-theme={theme}>
-      <Navbar />
+    <div data-theme={theme} className="flex h-screen overflow-hidden">
+      {authUser && <SidebarRail />}
 
-      <Routes>
-        <Route path="/" element={authUser ? <HomePage /> : <Navigate to="/login" />} />
-        <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/" />} />
-        <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
-      </Routes>
+      <main className="flex-1 overflow-y-auto">
+        <Routes>
+          <Route path="/" element={authUser ? <HomePage /> : <Navigate to="/login" />} />
+          <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to="/" />} />
+          <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
+        </Routes>
+      </main>
 
       <Toaster />
     </div>
