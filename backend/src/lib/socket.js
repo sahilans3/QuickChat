@@ -26,9 +26,16 @@ const pubClient = createClient({
 
 const subClient = pubClient.duplicate();
 
-// ✅ Get socketId from Redis
+// ✅ Get socketId from Redis or memory fallback
+const userSocketMap = new Map(); // Memory fallback if Redis fails
+
 export async function getReceiverSocketId(userId) {
-  return await pubClient.get(`user:${userId}`);
+  if (pubClient.isReady) {
+    try {
+      return await pubClient.get(`user:${userId}`);
+    } catch(e) { return userSocketMap.get(userId); }
+  }
+  return userSocketMap.get(userId);
 }
 
 // ---------------- SOCKET CONNECTION ----------------
@@ -39,25 +46,43 @@ io.on("connection", async (socket) => {
   const userId = socket.handshake.query.userId;
 
   if (userId) {
-    // store mapping
-    await pubClient.set(`user:${userId}`, socket.id);
-    await pubClient.sAdd("online_users", userId);
+    if (pubClient.isReady) {
+      try {
+        await pubClient.set(`user:${userId}`, socket.id);
+        await pubClient.sAdd("online_users", userId);
+      } catch(e) { userSocketMap.set(userId, socket.id); }
+    } else {
+      userSocketMap.set(userId, socket.id);
+    }
   }
 
   // send online users
-  const onlineUsers = await pubClient.sMembers("online_users");
-  io.emit("getOnlineUsers", onlineUsers);
+  const getOnline = async () => {
+    if (pubClient.isReady) {
+      try {
+         return await pubClient.sMembers("online_users");
+      } catch(e) { return Array.from(userSocketMap.keys()); }
+    }
+    return Array.from(userSocketMap.keys());
+  }
+  
+  io.emit("getOnlineUsers", await getOnline());
 
   socket.on("disconnect", async () => {
     console.log("A user disconnected", socket.id);
 
     if (userId) {
-      await pubClient.del(`user:${userId}`);
-      await pubClient.sRem("online_users", userId);
+      if (pubClient.isReady) {
+        try {
+          await pubClient.del(`user:${userId}`);
+          await pubClient.sRem("online_users", userId);
+        } catch(e) { userSocketMap.delete(userId); }
+      } else {
+        userSocketMap.delete(userId);
+      }
     }
 
-    const updatedUsers = await pubClient.sMembers("online_users");
-    io.emit("getOnlineUsers", updatedUsers);
+    io.emit("getOnlineUsers", await getOnline());
   });
 });
 
