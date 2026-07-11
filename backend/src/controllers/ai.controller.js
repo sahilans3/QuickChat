@@ -46,54 +46,53 @@ export const sendMessageToAI = async (req, res) => {
     });
     await userMessage.save();
 
-    // Notify user of their own message (for UI consistency if needed, though usually frontend adds it)
-    const receiverSocketId = await getReceiverSocketId(senderId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", userMessage);
-      // Emit typing indicator
-      io.to(receiverSocketId).emit("aiTyping", { isTyping: true });
-    }
+    // Return the user's message instantly so UI updates
+    res.status(201).json(userMessage);
 
-    // 2. Fetch history & call Gemini
-    const history = await getRecentConversation(senderId);
-    
-    let aiResponseText;
-    if (imageUrl && !text) {
-        aiResponseText = await analyzeImage(image, "Describe this image.");
-    } else if (imageUrl && text) {
-        aiResponseText = await analyzeImage(image, text);
-    } else {
-        aiResponseText = await generateReply(history, text);
-    }
+    // 2. Process AI Response in background
+    (async () => {
+      try {
+        const receiverSocketId = await getReceiverSocketId(senderId);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit("aiTyping", { isTyping: true });
+        }
 
-    // 3. Save AI's response
-    const aiMessage = new Message({
-      senderId: AI_ID,
-      receiverId: senderId,
-      text: aiResponseText,
-      isAIGenerated: true,
-      status: 'complete'
-    });
-    await aiMessage.save();
+        const history = await getRecentConversation(senderId);
+        
+        let aiResponseText;
+        if (imageUrl && !text) {
+            aiResponseText = await analyzeImage(image, "Describe this image.");
+        } else if (imageUrl && text) {
+            aiResponseText = await analyzeImage(image, text);
+        } else {
+            aiResponseText = await generateReply(history, text);
+        }
 
-    // 4. Send AI response back to user via socket
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("aiTyping", { isTyping: false });
-      io.to(receiverSocketId).emit("newMessage", aiMessage);
-    }
+        const aiMessage = new Message({
+          senderId: AI_ID,
+          receiverId: senderId,
+          text: aiResponseText,
+          isAIGenerated: true,
+          status: 'complete'
+        });
+        await aiMessage.save();
 
-    res.status(201).json(aiMessage);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit("aiTyping", { isTyping: false });
+          io.to(receiverSocketId).emit("newMessage", aiMessage);
+        }
+      } catch (aiError) {
+        console.error("Background AI Error:", aiError);
+        const receiverSocketId = await getReceiverSocketId(senderId);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit("aiTyping", { isTyping: false });
+          io.to(receiverSocketId).emit("aiMessageError", { message: "AI is temporarily unavailable." });
+        }
+      }
+    })();
   } catch (error) {
     console.error("Error in sendMessageToAI:", error);
-    
-    // Attempt to notify user of error
-    const receiverSocketId = await getReceiverSocketId(req.user._id);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("aiTyping", { isTyping: false });
-      io.to(receiverSocketId).emit("aiMessageError", { message: "AI is temporarily unavailable." });
-    }
-
-    res.status(500).json({ error: "AI is temporarily unavailable." });
+    res.status(500).json({ error: "Failed to send message to AI." });
   }
 };
 
